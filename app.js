@@ -208,8 +208,8 @@ document.body.insertAdjacentHTML("afterbegin", `
   <a class="brand" href="index.html" aria-label="ES Express, на главную">${logo()}${document.querySelector(".hero")
     ? '<img class="chrome" src="photos/logo-chrome.png" width="2000" height="717" alt="">' : ""}</a>`);
 
-// на странице заявки только шапка и строка
-if (document.body.dataset.page !== "request") document.body.insertAdjacentHTML("beforeend", `
+// на странице заявки только шапка и строка; на «Ещё» связь с менеджером и так первой строкой, форма там лишняя
+if (!["request", "more"].includes(document.body.dataset.page)) document.body.insertAdjacentHTML("beforeend", `
   <section class="ask">
     <h2>Остались вопросы?</h2>
     <p>Напишите нам, менеджер ответит в Telegram.</p>
@@ -268,30 +268,49 @@ const brand = document.querySelector(".brand");
 const bar = document.querySelector(".bar");
 const calm = matchMedia("(prefers-reduced-motion: reduce)");
 
-function placeBrand() {
+// если браузер умеет, движение логотипа ведёт сама прокрутка (CSS scroll-timeline): он едет ровно вместе со страницей.
+// раньше позицию считал скрипт на каждом шаге, и на айфоне логотип отставал и дрожал. скрипт остался запасным вариантом
+const scrollDriven = !!hero && !calm.matches && CSS.supports?.("animation-timeline: scroll()");
+let geo;
+function measure() {
   const css = getComputedStyle(document.documentElement);
   const ticker = parseFloat(css.getPropertyValue("--ticker")), header = parseFloat(css.getPropertyValue("--header"));
   const big = Math.min(innerWidth * 0.84, 1200), small = innerWidth < 900 ? 72 : 112;
   const topEnd = ticker + (header - small / LOGO_RATIO) / 2;
-  let e = 1, topStart = topEnd;
-  if (hero) {
-    const p = Math.min(1, Math.max(0, scrollY / (hero.offsetHeight * 0.55)));
-    e = calm.matches ? (p < 1 ? 0 : 1) : p * (2 - p);
-    topStart = (ticker + hero.offsetHeight) / 2 - big / LOGO_RATIO / 2;
-  }
-  const scale = 1 + (small / big - 1) * e;
+  const topStart = hero ? (ticker + hero.offsetHeight) / 2 - big / LOGO_RATIO / 2 : topEnd;
+  geo = { big, small, topEnd, topStart, end: hero ? hero.offsetHeight * 0.55 : 0, solidAt: hero ? hero.offsetHeight - ticker - header : 0 };
   brand.style.width = big + "px";
-  brand.style.transform = `translate(-50%, ${topStart + (topEnd - topStart) * e}px) scale(${scale})`;
-  const solid = !hero || scrollY > hero.offsetHeight - ticker - header;
-  bar.classList.toggle("solid", solid);
-  brand.classList.toggle("dark", solid);
+  if (scrollDriven) {
+    brand.style.setProperty("--y0", topStart + "px");
+    brand.style.setProperty("--y1", topEnd + "px");
+    brand.style.setProperty("--s1", (small / big).toFixed(4));
+    brand.style.setProperty("--dock-end", geo.end + "px");
+    brand.classList.add("scrolly");
+  }
+  placeBrand();
+}
+function placeBrand() {
+  const { big, small, topEnd, topStart, end, solidAt } = geo;
+  if (!scrollDriven) {
+    let e = 1;
+    if (hero) {
+      const p = Math.min(1, Math.max(0, scrollY / end));
+      e = calm.matches ? (p < 1 ? 0 : 1) : p * (2 - p);
+    }
+    brand.style.transform = `translate(-50%, ${topStart + (topEnd - topStart) * e}px) scale(${1 + (small / big - 1) * e})`;
+  }
+  const solid = !hero || scrollY > solidAt;
+  if (solid !== bar.classList.contains("solid")) {
+    bar.classList.toggle("solid", solid);
+    brand.classList.toggle("dark", solid);
+  }
 }
 let queued = false;
 addEventListener("scroll", () => {
   if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; placeBrand(); }); }
 }, { passive: true });
-addEventListener("resize", placeBrand);
-placeBrand();
+addEventListener("resize", measure);
+measure();
 
 // страницы
 const params = new URLSearchParams(location.search);
