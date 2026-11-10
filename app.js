@@ -206,7 +206,7 @@ document.body.insertAdjacentHTML("afterbegin", `
     <a class="bar-request" href="request.html">Заявка (<span data-count>0</span>)</a>
   </header>
   <a class="brand" href="index.html" aria-label="ES Express, на главную">${logo()}${document.querySelector(".hero")
-    ? '<img class="chrome" src="photos/logo-chrome.png" width="2000" height="717" alt="">' : ""}</a>`);
+    ? '<img class="chrome" src="photos/logo-chrome.png?v=2" width="2000" height="717" alt="">' : ""}</a>`);
 
 // на странице заявки только шапка и строка; на «Ещё» связь с менеджером и так первой строкой, форма там лишняя
 if (!["request", "more"].includes(document.body.dataset.page)) document.body.insertAdjacentHTML("beforeend", `
