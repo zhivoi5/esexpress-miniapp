@@ -78,6 +78,22 @@ const LOOKS = LOOK_DATA.map(([id, date, box, things]) => {
 // все вещи: из каталога и из образов. в каталоге показываем только ITEMS
 const ALL = [...ITEMS, ...LOOKS.flatMap((l) => l.items)];
 
+// подразделы одежды — по ассортименту канала (150 постов с конца июля). вещь попадает в подраздел
+// по слову в названии, порядок важен: «sweatshirt» должен уйти в свитеры раньше, чем «shirt» в футболки
+const SUBS = {
+  "Одежда": [
+    ["Верхняя одежда", /jacket|coat|trench|puffer|blazer|vest|bomber|куртк|пальто|тренч|пуховик|бомбер|жилет|пиджак|ветровк/],
+    ["Свитеры и худи", /sweater|cardigan|jumper|hoodie|sweatshirt|худи|свитшот|свитер|кардиган|джемпер|кофт/],
+    ["Футболки и топы", /t-shirt|tee|long-?sleeve|polo|tank|top|shirt|футболк|лонгслив|поло|топ|рубашк|майк/],
+    ["Джинсы", /jeans|denim|джинс/],
+    ["Брюки и шорты", /pants|trousers|shorts|брюк|штан|шорт/],
+  ],
+};
+const subOf = (item) => (SUBS[item.cat] || []).find(([, re]) => re.test(item.name.toLowerCase()))?.[0] ?? null;
+// номер поста зашит в имя фото: чем больше, тем свежее
+const postId = (item) => parseInt(item.photos[0], 10) || 0;
+const NEWEST = [...ITEMS].sort((a, b) => postId(b) - postId(a));
+
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5s-7.5-4.6-7.5-9.7A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4c0 5.1-7.5 9.7-7.5 9.7z"/></svg>';
 const rub = (n) => "от " + n.toLocaleString("ru-RU") + " ₽";
 const logo =(label) => `<svg viewBox="0 0 1742 556" ${label ? 'role="img" aria-label="ES Express"' : 'aria-hidden="true"'}><use href="logo.svg#logo" width="1742" height="556"/></svg>`;
@@ -318,7 +334,7 @@ const page = document.body.dataset.page;
 
 if (page === "home") {
   // 8 вещей: на компьютере видно 7 (два ряда по 4 с заголовком), на телефоне все 8 (три ряда по 3)
-  const cards = ITEMS.slice(0, 8).map(card);
+  const cards = NEWEST.slice(0, 8).map(card);
   // третья ячейка первого ряда — заголовок, как на референсе
   cards.splice(2, 0, `<div class="arrivals"><h2>Новые поступления</h2><p>Доставка включена в стоимость</p></div>`);
   document.getElementById("grid").innerHTML = cards.join("");
@@ -425,12 +441,56 @@ if (page === "look") {
   }
 }
 
+// каталог: сначала новинки, разделы и подразделы, поиск, вещи подгружаются порциями по 24 по мере прокрутки
 if (page === "catalog") {
   const cat = CATS.includes(params.get("cat")) ? params.get("cat") : null;
-  document.getElementById("filters").innerHTML = [null, ...CATS].map((c) =>
-    `<a href="catalog.html${c ? "?cat=" + encodeURIComponent(c) : ""}"${c === cat ? ' aria-current="page"' : ""}>${c || "Всё"}</a>`).join("");
-  document.getElementById("grid").innerHTML = ITEMS.filter((i) => !cat || i.cat === cat).map(card).join("");
-  updateRequestLinks();
+  const inCat = NEWEST.filter((i) => !cat || i.cat === cat);
+  const subs = (SUBS[cat] || []).map(([s]) => s).filter((s) => inCat.some((i) => subOf(i) === s)); // пустые не показываем
+  const sub = subs.includes(params.get("sub")) ? params.get("sub") : null;
+  const link = (c, s) => "catalog.html" + (c ? "?cat=" + encodeURIComponent(c) + (s ? "&sub=" + encodeURIComponent(s) : "") : "");
+  const filters = document.getElementById("filters"), subsEl = document.getElementById("subs");
+  filters.innerHTML = [null, ...CATS].map((c) => `<a href="${link(c)}"${c === cat ? ' aria-current="page"' : ""}>${c || "Всё"}</a>`).join("");
+  subsEl.hidden = subs.length < 2;
+  subsEl.innerHTML = subs.length < 2 ? "" : [null, ...subs].map((s) =>
+    `<a href="${link(cat, s)}"${s === sub ? ' aria-current="page"' : ""}>${s || "Вся " + cat.toLowerCase()}</a>`).join("");
+  // выбранный раздел, если он за краем строки, прокручиваем в видимую часть
+  for (const row of [filters, subsEl]) {
+    const on = row.querySelector("[aria-current]");
+    if (on) row.scrollLeft = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
+  }
+
+  const grid = document.getElementById("grid"), empty = document.getElementById("empty");
+  const sentinel = document.getElementById("sentinel"), search = document.getElementById("search");
+  const PAGE = 24;
+  let list = [], shown = 0;
+  search.value = params.get("q") || "";
+
+  function addMore() {
+    const next = list.slice(shown, shown + PAGE);
+    grid.insertAdjacentHTML("beforeend", next.map(card).join(""));
+    shown += next.length;
+    updateRequestLinks();
+    // если экран длинный и конец списка всё ещё виден, догружаем сразу
+    requestAnimationFrame(() => {
+      if (shown < list.length && sentinel.getBoundingClientRect().top < innerHeight + 600) addMore();
+    });
+  }
+  function apply() {
+    const q = search.value.trim().toLowerCase();
+    list = inCat.filter((i) => (!sub || subOf(i) === sub) && (!q || i.name.toLowerCase().includes(q)));
+    shown = 0;
+    grid.innerHTML = "";
+    empty.hidden = list.length > 0;
+    addMore();
+  }
+  new IntersectionObserver((e) => { if (e[0].isIntersecting && shown < list.length) addMore(); }, { rootMargin: "600px" }).observe(sentinel);
+  search.addEventListener("input", () => {
+    apply();
+    const u = new URL(location.href);
+    search.value.trim() ? u.searchParams.set("q", search.value.trim()) : u.searchParams.delete("q");
+    history.replaceState(null, "", u);
+  });
+  apply();
 }
 
 if (page === "favorites") {

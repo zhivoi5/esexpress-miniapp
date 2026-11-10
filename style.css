@@ -157,8 +157,22 @@ html { touch-action: manipulation; }
 .crop img { display: block; max-width: none; height: auto; filter: url(#whiten); }
 .card .crop { width: calc(86% * min(1, var(--r))); max-width: var(--w); }
 
-.filters { display: flex; flex-wrap: wrap; gap: 4px 24px; margin-bottom: 40px; font: var(--bold); font-size: 12px; color: var(--muted); }
-.filters a { display: flex; align-items: center; min-height: 40px; }
+/* разделы всегда в одну строку; если не влезают, строка листается вбок, а край обрезан — видно, что дальше есть ещё */
+.filters { display: flex; gap: 24px; margin: 0 calc(var(--pad) * -1) 40px; padding: 0 var(--pad); overflow-x: auto; scrollbar-width: none; font: var(--bold); font-size: 12px; color: var(--muted); }
+.filters::-webkit-scrollbar { display: none; }
+.filters a { flex: none; display: flex; align-items: center; min-height: 40px; white-space: nowrap; }
+/* подразделы — второй строкой, тоньше и мельче */
+.filters.subs { gap: 18px; margin-top: -32px; margin-bottom: 32px; font: 12px "Tenor Sans", sans-serif; }
+.filters[hidden] { display: none; }
+
+/* поиск; шрифт 16px, чтобы айфон не увеличивал страницу при нажатии на поле */
+.search { display: flex; align-items: center; gap: 8px; max-width: 420px; height: 44px; margin-bottom: 18px; padding: 0 16px; border-radius: 22px; background: #f3f3f1; transition: box-shadow 150ms; }
+.search:focus-within { box-shadow: 0 0 0 1px var(--fg); }
+.search svg { flex: none; width: 17px; height: 17px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; }
+.search input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; font: 16px "Tenor Sans", sans-serif; color: var(--fg); }
+.search input:focus { outline: none; }
+.search input::-webkit-search-cancel-button { opacity: .5; }
+#sentinel { height: 1px; }
 .filters a[aria-current="page"] { color: var(--fg); text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
 
 /* карточка товара: узкая колонка с названием, крупное фото, узкая колонка с размером */
