@@ -1,5 +1,5 @@
 // товары и цены из постов канала @esexpresss
-const ITEMS = [
+const BUILT_IN = [
   { id: "vanilla-shot", cat: "Парфюм", name: "Olfactive Studio Vanilla Shot", price: 14990, desc: "Ваниль, карамель и тёплые пряные ноты. Цена за 100 мл.", photos: ["1163_0"] },
   { id: "margiela-bomber", cat: "Одежда", name: "Бомбер Maison Margiela", price: 45090, desc: "Кожаный бомбер шоколадного цвета, свободный крой, объёмные накладные карманы.", photos: ["1164_0", "1164_1"], sizes: "clothes" },
   { id: "cos-jacket", cat: "Одежда", name: "Укороченная куртка COS", price: 42490, desc: "Чёрная фактурная куртка с контрастным кожаным воротником.", photos: ["1152_0", "1152_1"], sizes: "clothes" },
@@ -75,8 +75,6 @@ const LOOKS = LOOK_DATA.map(([id, date, box, things]) => {
   });
   return { id, date, photo: `${id}_0#look`, items };
 });
-// все вещи: из каталога и из образов. в каталоге показываем только ITEMS
-const ALL = [...ITEMS, ...LOOKS.flatMap((l) => l.items)];
 
 // подразделы одежды — по ассортименту канала (150 постов с конца июля). вещь попадает в подраздел
 // по слову в названии, порядок важен: «sweatshirt» должен уйти в свитеры раньше, чем «shirt» в футболки
@@ -92,7 +90,76 @@ const SUBS = {
 const subOf = (item) => (SUBS[item.cat] || []).find(([, re]) => re.test(item.name.toLowerCase()))?.[0] ?? null;
 // номер поста зашит в имя фото: чем больше, тем свежее
 const postId = (item) => parseInt(item.photos[0], 10) || 0;
-const NEWEST = [...ITEMS].sort((a, b) => postId(b) - postId(a));
+
+// товары можно вести в Google-таблице: владелец правит строки, каталог берёт их оттуда.
+// ссылка — «Файл → Поделиться → Опубликовать в интернете → CSV». пустая — работаем на товарах из кода
+const SHEET = "";
+// ITEMS — каталог, ALL — плюс вещи из образов, NEWEST — новинки первыми
+let ITEMS, ALL, NEWEST;
+function useItems(list, fromSheet) {
+  ITEMS = list;
+  ALL = [...ITEMS, ...LOOKS.flatMap((l) => l.items)];
+  // в таблице новинки сверху, в коде — по номеру поста
+  NEWEST = fromSheet ? ITEMS : [...ITEMS].sort((a, b) => postId(b) - postId(a));
+}
+
+function parseCSV(text) {
+  const rows = [[]];
+  let cell = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else cell += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ",") { rows.at(-1).push(cell); cell = ""; }
+    else if (c === "\n") { rows.at(-1).push(cell); cell = ""; rows.push([]); }
+    else if (c !== "\r") cell += c;
+  }
+  rows.at(-1).push(cell);
+  return rows;
+}
+// текст из таблицы попадает и в разметку, и в textContent, поэтому не кодируем, а убираем то, что ломает разметку
+const esc = (v) => v.replace(/[<>]/g, "").replace(/"/g, "”");
+// ссылку «поделиться» из Google Диска превращаем в прямую ссылку на картинку
+const drivePhoto = (url) => {
+  const m = url.match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/);
+  return m ? `https://lh3.googleusercontent.com/d/${m[1] || m[2]}=w1200` : url;
+};
+// столбцы ищем по заголовку, поэтому их порядок в таблице не важен
+function sheetItems(text) {
+  const [head = [], ...rows] = parseCSV(text);
+  const at = (name) => head.findIndex((h) => h.trim().toLowerCase() === name);
+  const cols = { show: at("показывать"), cat: at("раздел"), name: at("название"), price: at("цена"), desc: at("описание"), photos: at("фото"), sizes: at("размеры"), id: at("id") };
+  return rows.map((r) => {
+    const get = (k) => (r[cols[k]] ?? "").trim();
+    const name = get("name"), sizes = get("sizes");
+    return {
+      id: esc(get("id") || name.toLowerCase().replace(/[^a-zа-яё0-9]+/g, "-").replace(/^-|-$/g, "")),
+      cat: esc(get("cat")), name: esc(name), price: parseInt(get("price").replace(/\D/g, ""), 10) || 0, desc: esc(get("desc")),
+      photos: get("photos").split(/[\s,]+/).filter(Boolean).map((f) => esc(drivePhoto(f))),
+      sizes: /^одежда$/i.test(sizes) ? "clothes" : /^обувь$/i.test(sizes) ? "shoes" : sizes ? sizes.split(/\s*,\s*/).map(esc) : undefined,
+      hidden: /^(нет|no|0)$/i.test(get("show")),
+    };
+  }).filter((i) => i.name && i.photos.length && !i.hidden);
+}
+
+// с сохранённой копией таблицы показываем её сразу, а свежую подтягиваем к следующему заходу;
+// без копии ждём таблицу до 3 секунд. таблица недоступна — товары из кода
+const ITEMS_KEY = "es-items";
+let cachedItems = null;
+try { cachedItems = SHEET ? JSON.parse(localStorage.getItem(ITEMS_KEY)) : null; } catch {}
+useItems(cachedItems || BUILT_IN, !!cachedItems);
+const freshItems = !SHEET ? Promise.resolve(null) : fetch(SHEET + (SHEET.includes("?") ? "&" : "?") + "t=" + Date.now())
+  .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+  .then((text) => {
+    const list = sheetItems(text);
+    if (!list.length) return null; // пустая или сломанная таблица не стирает каталог
+    try { localStorage.setItem(ITEMS_KEY, JSON.stringify(list)); } catch {}
+    return list;
+  })
+  .catch(() => null);
 
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5s-7.5-4.6-7.5-9.7A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4c0 5.1-7.5 9.7-7.5 9.7z"/></svg>';
 const rub = (n) => "от " + n.toLocaleString("ru-RU") + " ₽";
@@ -101,6 +168,8 @@ const logo =(label) => `<svg viewBox="0 0 1742 556" ${label ? 'role="img" aria-l
 // вырезаем ровно вещь с небольшим полем, поэтому она всегда стоит по центру;
 // --w — её настоящая ширина в пикселях, крупнее фото не растягиваем, иначе видны пиксели
 function shot(file, item, eager) {
+  // фото из таблицы без рамки: показываем целиком
+  if (!BOX[file]) return `<span class="crop" style="--r:.8;--w:800px;aspect-ratio:4/5"><img src="${file}" style="width:100%;height:100%;object-fit:contain" alt="${eager ? item.name : ""}"${eager ? "" : ' loading="lazy"'}></span>`;
   const [bx, by, bw, bh, W, H] = BOX[file];
   // у вещей из образа соседи стоят вплотную, поэтому поле почти нулевое
   const pad = Math.max(bw, bh) * (file.includes("#") ? 0.012 : 0.04);
@@ -339,6 +408,8 @@ appear(document.querySelector("#folder .closed"), document.getElementById("folde
 // пока человек на других страницах, папка из «Заявки» тихо докачивается в фоне
 if (page !== "request") addEventListener("load", () => ["folder-closed", "folder-open"].forEach((n) => { new Image().src = `photos/${n}.webp`; }));
 
+// страницы строим, когда товары готовы
+function start() {
 if (page === "home") {
   // 8 вещей: на компьютере видно 7 (два ряда по 4 с заголовком), на телефоне все 8 (три ряда по 3)
   const cards = NEWEST.slice(0, 8).map(card);
@@ -614,7 +685,7 @@ if (page === "product") {
 
 function renderProduct(item) {
   document.title = item.name + " — ES Express";
-  const sizes = SIZES[item.sizes];
+  const sizes = Array.isArray(item.sizes) ? item.sizes : SIZES[item.sizes];
   let size = null;
 
   const gallery = document.getElementById("gallery");
@@ -695,6 +766,9 @@ function renderProduct(item) {
   document.getElementById("more").innerHTML = [...more, ...ITEMS.filter((i) => i.cat !== item.cat)].slice(0, 4).map(card).join("");
   updateRequestLinks();
 }
+}
+if (cachedItems || !SHEET) start();
+else Promise.race([freshItems, new Promise((r) => setTimeout(r, 3000, null))]).then((list) => { if (list) useItems(list, true); start(); });
 
 // Telegram: скрипт Telegram грузим только внутри мини-приложения (при запуске оно передаёт tgWebAppData),
 // поэтому в обычном браузере сайт его не ждёт. флаг в sessionStorage — для переходов между страницами
