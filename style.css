@@ -278,7 +278,9 @@ html { touch-action: manipulation; }
   .tile-price { font-size: 8.5px; }
   .tile-x { width: 16px; height: 16px; top: -5px; right: -5px; font-size: 11px; }
 }
-@media (prefers-reduced-motion: reduce) { .tile, .tile-body, .folder img { transition: none; } }
+.appear { animation: appear 450ms ease-out; }
+@keyframes appear { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tile, .tile-body, .folder img { transition: none; } .appear { animation: none; } }
 
 /* сердечко в карточке товара */
 .fav { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 36px; margin-top: 6px; font-size: 12px; color: var(--muted); }

@@ -222,7 +222,7 @@ document.body.insertAdjacentHTML("afterbegin", `
     <a class="bar-request" href="request.html">Заявка (<span data-count>0</span>)</a>
   </header>
   <a class="brand" href="index.html" aria-label="ES Express, на главную">${logo()}${document.querySelector(".hero")
-    ? '<img class="chrome" src="photos/logo-chrome.png?v=2" width="2000" height="717" alt="">' : ""}</a>`);
+    ? '<img class="chrome" src="photos/logo-chrome.webp" width="2000" height="717" alt="">' : ""}</a>`);
 
 // на странице заявки только шапка и строка; на «Ещё» связь с менеджером и так первой строкой, форма там лишняя
 if (!["request", "more"].includes(document.body.dataset.page)) document.body.insertAdjacentHTML("beforeend", `
@@ -331,6 +331,13 @@ measure();
 // страницы
 const params = new URLSearchParams(location.search);
 const page = document.body.dataset.page;
+
+// крупная картинка, которая ещё грузится, проявляется плавно, а не выскакивает
+const appear = (img, el = img) => { if (img && !img.complete) img.addEventListener("load", () => el.classList.add("appear"), { once: true }); };
+appear(document.querySelector(".brand .chrome"));
+appear(document.querySelector("#folder .closed"), document.getElementById("folder"));
+// пока человек на других страницах, папка из «Заявки» тихо докачивается в фоне
+if (page !== "request") addEventListener("load", () => ["folder-closed", "folder-open"].forEach((n) => { new Image().src = `photos/${n}.webp`; }));
 
 if (page === "home") {
   // 8 вещей: на компьютере видно 7 (два ряда по 4 с заголовком), на телефоне все 8 (три ряда по 3)
