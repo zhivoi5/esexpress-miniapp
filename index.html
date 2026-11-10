@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ES Express</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="ES Express — одежда, обувь и аксессуары под заказ. Доставка включена в стоимость.">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="home">
+  <section class="hero" aria-label="ES Express">
+    <!-- фото с Unsplash (бесплатная лицензия): unsplash.com/photos/0mchrVHAYzg -->
+    <img src="photos/hero.jpg" width="2400" height="1600" alt="">
+  </section>
+
+  <section class="looks" aria-roledescription="карусель" aria-label="Образы">
+    <h2 class="looks-title">Образы</h2>
+    <div class="looks-track" id="looks"></div>
+    <button class="looks-arrow prev" id="looks-prev" aria-label="Предыдущий образ">‹</button>
+    <button class="looks-arrow next" id="looks-next" aria-label="Следующий образ">›</button>
+    <div class="looks-dots" id="dots"></div>
+  </section>
+
+  <main class="section">
+    <div class="grid home-grid" id="grid"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

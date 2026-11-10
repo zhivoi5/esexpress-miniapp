@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ES Express</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="ES Express — одежда, обувь и аксессуары под заказ. Доставка включена в стоимость.">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="product">
+  <main class="page">
+    <div class="product">
+      <section class="info">
+        <h1 id="name"></h1>
+        <p class="price" id="price"></p>
+        <p class="desc" id="desc"></p>
+      </section>
+      <div class="viewer">
+        <div class="gallery" id="gallery" aria-label="Фотографии"></div>
+        <p class="counter" id="counter" aria-live="polite"></p>
+      </div>
+      <section class="buy">
+        <div class="notes" id="notes" hidden><p>Ноты аромата</p><ul></ul></div>
+        <div class="pick">
+          <div class="sizes" id="sizes" hidden><p>Размер</p><div></div></div>
+          <button class="add" id="add"></button>
+          <button class="fav" id="fav" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5s-7.5-4.6-7.5-9.7A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.4c0 5.1-7.5 9.7-7.5 9.7z"/></svg><span>В избранное</span></button>
+        </div>
+      </section>
+    </div>
+
+    <section class="section">
+      <h2 class="title">Похожие вещи</h2>
+      <div class="grid" id="more"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

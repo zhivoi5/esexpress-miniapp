@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Заявка — ES Express</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="ES Express — одежда, обувь и аксессуары под заказ. Доставка включена в стоимость.">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="request">
+  <main class="req">
+    <div class="stage">
+      <div class="ring" id="ring"></div>
+      <button class="folder" id="folder" aria-expanded="false" aria-controls="ring" aria-label="Открыть заявку">
+        <img class="closed" src="photos/folder-closed.png" width="1172" height="917" alt="">
+        <img class="open" src="photos/folder-open.png" width="1090" height="772" alt="">
+      </button>
+    </div>
+    <div class="req-actions">
+      <button class="look" id="look">↑ Посмотреть заявку</button>
+      <a class="send" id="send" data-request href="#">Отправить заявку менеджеру</a>
+      <p class="req-empty" id="empty" hidden>Заявка пока пустая. <a href="catalog.html">Перейти в каталог</a></p>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
