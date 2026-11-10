@@ -93,7 +93,7 @@ const postId = (item) => parseInt(item.photos[0], 10) || 0;
 
 // товары можно вести в Google-таблице: владелец правит строки, каталог берёт их оттуда.
 // ссылка — «Файл → Поделиться → Опубликовать в интернете → CSV». пустая — работаем на товарах из кода
-const SHEET = "";
+const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSKO8AY48Ri0-BnAtj8pzioaQD4f1eyv95H2SwpGcp_M4ov9ELvmSajCMMwdjQa00OpFJ26FMwmMumo/pub?output=csv";
 // ITEMS — каталог, ALL — плюс вещи из образов, NEWEST — новинки первыми
 let ITEMS, ALL, NEWEST;
 function useItems(list, fromSheet) {
@@ -145,12 +145,13 @@ function sheetItems(text) {
   }).filter((i) => i.name && i.photos.length && !i.hidden);
 }
 
-// с сохранённой копией таблицы показываем её сразу, а свежую подтягиваем к следующему заходу;
-// без копии ждём таблицу до 3 секунд. таблица недоступна — товары из кода
+// Google отдаёт таблицу 2–3 секунды, поэтому её не ждём: показываем сохранённую копию (или товары из кода),
+// а когда таблица пришла и в ней что-то поменялось — перестраиваем сетку через onItems
 const ITEMS_KEY = "es-items";
 let cachedItems = null;
 try { cachedItems = SHEET ? JSON.parse(localStorage.getItem(ITEMS_KEY)) : null; } catch {}
 useItems(cachedItems || BUILT_IN, !!cachedItems);
+let onItems = null;
 const freshItems = !SHEET ? Promise.resolve(null) : fetch(SHEET + (SHEET.includes("?") ? "&" : "?") + "t=" + Date.now())
   .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
   .then((text) => {
@@ -411,12 +412,15 @@ if (page !== "request") addEventListener("load", () => ["folder-closed", "folder
 // страницы строим, когда товары готовы
 function start() {
 if (page === "home") {
-  // 8 вещей: на компьютере видно 7 (два ряда по 4 с заголовком), на телефоне все 8 (три ряда по 3)
-  const cards = NEWEST.slice(0, 8).map(card);
-  // третья ячейка первого ряда — заголовок, как на референсе
-  cards.splice(2, 0, `<div class="arrivals"><h2>Новые поступления</h2><p>Доставка включена в стоимость</p></div>`);
-  document.getElementById("grid").innerHTML = cards.join("");
-  updateRequestLinks();
+  onItems = () => {
+    // 8 вещей: на компьютере видно 7 (два ряда по 4 с заголовком), на телефоне все 8 (три ряда по 3)
+    const cards = NEWEST.slice(0, 8).map(card);
+    // третья ячейка первого ряда — заголовок, как на референсе
+    cards.splice(2, 0, `<div class="arrivals"><h2>Новые поступления</h2><p>Доставка включена в стоимость</p></div>`);
+    document.getElementById("grid").innerHTML = cards.join("");
+    updateRequestLinks();
+  };
+  onItems();
 }
 
 const lookTotal = (l) => l.items.reduce((s, i) => s + i.price, 0);
@@ -522,7 +526,7 @@ if (page === "look") {
 // каталог: сначала новинки, разделы и подразделы, поиск, вещи подгружаются порциями по 24 по мере прокрутки
 if (page === "catalog") {
   const cat = CATS.includes(params.get("cat")) ? params.get("cat") : null;
-  const inCat = NEWEST.filter((i) => !cat || i.cat === cat);
+  let inCat = NEWEST.filter((i) => !cat || i.cat === cat);
   const subs = (SUBS[cat] || []).map(([s]) => s).filter((s) => inCat.some((i) => subOf(i) === s)); // пустые не показываем
   const sub = subs.includes(params.get("sub")) ? params.get("sub") : null;
   const link = (c, s) => "catalog.html" + (c ? "?cat=" + encodeURIComponent(c) + (s ? "&sub=" + encodeURIComponent(s) : "") : "");
@@ -569,6 +573,7 @@ if (page === "catalog") {
     history.replaceState(null, "", u);
   });
   apply();
+  onItems = () => { inCat = NEWEST.filter((i) => !cat || i.cat === cat); apply(); };
 }
 
 if (page === "favorites") {
@@ -679,8 +684,13 @@ function renderRequest() {
 
 if (page === "product") {
   const item = ALL.find((i) => i.id === params.get("id"));
-  if (!item) location.replace("catalog.html");
-  else renderProduct(item);
+  if (item) renderProduct(item);
+  // вещь могли только что добавить в таблицу — прежде чем уводить в каталог, дожидаемся её
+  else freshItems.then((list) => {
+    if (list) useItems(list, true);
+    const fresh = ALL.find((i) => i.id === params.get("id"));
+    fresh ? renderProduct(fresh) : location.replace("catalog.html");
+  });
 }
 
 function renderProduct(item) {
@@ -767,8 +777,12 @@ function renderProduct(item) {
   updateRequestLinks();
 }
 }
-if (cachedItems || !SHEET) start();
-else Promise.race([freshItems, new Promise((r) => setTimeout(r, 3000, null))]).then((list) => { if (list) useItems(list, true); start(); });
+start();
+freshItems.then((list) => {
+  if (!list || JSON.stringify(list) === JSON.stringify(ITEMS)) return;
+  useItems(list, true);
+  onItems?.();
+});
 
 // Telegram: скрипт Telegram грузим только внутри мини-приложения (при запуске оно передаёт tgWebAppData),
 // поэтому в обычном браузере сайт его не ждёт. флаг в sessionStorage — для переходов между страницами
