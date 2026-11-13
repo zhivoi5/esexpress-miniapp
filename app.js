@@ -177,7 +177,7 @@ function shot(file, item, eager) {
   const x = Math.max(0, bx - pad), y = Math.max(0, by - pad);
   const w = Math.min(W - x, bw + 2 * pad), h = Math.min(H - y, bh + 2 * pad);
   const pct = (v) => (v / w * 100).toFixed(2) + "%";
-  return `<span class="crop" style="--r:${(w / h).toFixed(3)};--w:${w.toFixed(0)}px;aspect-ratio:${w.toFixed(0)}/${h.toFixed(0)}"><img src="photos/${file.split("#")[0]}.jpg" width="${W}" height="${H}" style="width:${pct(W)};margin:-${pct(y)} 0 0 -${pct(x)}" alt="${eager ? item.name : ""}"${eager ? "" : ' loading="lazy"'}></span>`;
+  return `<span class="crop" style="--r:${(w / h).toFixed(3)};--w:${w.toFixed(0)}px;aspect-ratio:${w.toFixed(0)}/${h.toFixed(0)}"><img src="photos/${file.split("#")[0]}.jpg?v=2" width="${W}" height="${H}" style="width:${pct(W)};margin:-${pct(y)} 0 0 -${pct(x)}" alt="${eager ? item.name : ""}"${eager ? "" : ' loading="lazy"'}></span>`;
 }
 
 // сердечко — отдельная кнопка рядом со ссылкой: кнопка внутри ссылки не работает нормально
@@ -302,9 +302,6 @@ const tickerText = ["ES Express", "Доставка включена в стои
   .map((t) => `<span>${t}<svg class="mark" viewBox="0 0 359 433" aria-hidden="true"><use href="mark.svg#mark" width="359" height="433"/></svg></span>`).join("");
 
 document.body.insertAdjacentHTML("afterbegin", `
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <filter id="whiten" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1.037 0 0 0 0 0 1.037 0 0 0 0 0 1.09 0 0 0 0 0 1 0"/></filter>
-  </svg>
   <div class="ticker" aria-hidden="true"><div class="ticker-track">${tickerText.repeat(6)}</div></div>
   <header class="bar">
     <nav aria-label="Основное меню"><a href="index.html">Главная</a><a href="catalog.html">Каталог</a><a href="favorites.html">Избранное</a><a href="${MANAGER}">Связь</a></nav>

@@ -154,7 +154,8 @@ html { touch-action: manipulation; }
 
 /* обрезка прячет логотип, запечённый в фото; фильтр делает их кремовый фон белым */
 .crop { display: block; overflow: hidden; }
-.crop img { display: block; max-width: none; height: auto; filter: url(#whiten); }
+/* белый фон уже в самих фото: SVG-фильтр на айфоне рисовался по размеру начала анимации, и картинки мельчали */
+.crop img { display: block; max-width: none; height: auto; }
 .card .crop { width: calc(86% * min(1, var(--r))); max-width: var(--w); }
 
 /* разделы всегда в одну строку; если не влезают, строка листается вбок, а край обрезан — видно, что дальше есть ещё */
