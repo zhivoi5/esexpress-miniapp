@@ -232,10 +232,29 @@ function managerLink() {
   }).filter(Boolean);
   return writeTo("Здравствуйте! Хочу заказать:\n" + lines.join("\n"));
 }
+// с ботом заявка уходит через него: покупателю приходит карточка заказа, менеджеру — кнопки «Принять / Отклонить».
+// в ссылку на бота влезает 64 знака, поэтому вещь — это 4 знака от её id и 1 знак размера; бот считает так же.
+// пустой BOT, больше 12 вещей или вещь не нашлась — пишем менеджеру напрямую, как раньше
+const BOT = "esexpress_demo_bot";
+const shortId = (id) => {
+  let h = 2166136261;
+  for (const c of id) h = Math.imul(h ^ c.codePointAt(0), 16777619) >>> 0;
+  return (h % 1679616).toString(36).padStart(4, "0");
+};
+function botLink() {
+  if (!BOT || !request.length || request.length > 12) return null;
+  const parts = request.map(({ id, size }) => {
+    const item = ALL.find((i) => i.id === id);
+    if (!item) return null;
+    const n = (Array.isArray(item.sizes) ? item.sizes : SIZES[item.sizes] || []).indexOf(size);
+    return shortId(id) + (n >= 0 && n < 36 ? n.toString(36) : "_");
+  });
+  return parts.includes(null) ? null : `https://t.me/${BOT}?start=o${parts.join("")}`;
+}
 // цифра в шапке коротко «подпрыгивает», когда меняется; вещи из заявки в каталоге помечаются плашкой
 let shownCount = null;
 function updateRequestLinks() {
-  document.querySelectorAll("[data-request]").forEach((a) => (a.href = managerLink()));
+  document.querySelectorAll("[data-request]").forEach((a) => (a.href = botLink() || managerLink()));
   document.querySelectorAll("[data-count]").forEach((el) => {
     el.textContent = request.length;
     el.classList.toggle("zero", request.length === 0);
